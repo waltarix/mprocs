@@ -29,7 +29,7 @@ pub fn render_keymap(
 
   let block = theme
     .pane(false)
-    .title(Span::styled("Help", theme.pane_title(false)));
+    .title(Span::styled("Help", theme.style(false)));
   frame.render_widget(Clear, area);
   frame.render_widget(block, area);
 
@@ -54,7 +54,7 @@ pub fn render_keymap(
   let line = items
     .into_iter()
     .filter_map(|event| Some((keymap.resolve_key(group, &event)?, event)))
-    .map(|(key, event)| {
+    .flat_map(|(key, event)| {
       vec![
         Span::raw(" <"),
         Span::styled(print_key(key), Style::default().fg(Color::Yellow)),
@@ -63,7 +63,6 @@ pub fn render_keymap(
         Span::raw("> "),
       ]
     })
-    .flatten()
     .collect::<Vec<_>>();
 
   let line = Spans::from(line);

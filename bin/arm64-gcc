@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -- --target=aarch64-apple-darwin- "$@"
+
+exec gcc "$@"

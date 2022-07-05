@@ -168,7 +168,7 @@ impl KeyParser<'_> {
     let code = {
       let word = parser.take_word()?;
       if let Some(code) = KEYS.get(word.to_ascii_lowercase().as_str()) {
-        code.clone()
+        *code
       } else if word.len() == 1 {
         KeyCode::Char(word.chars().next().unwrap())
       } else {
@@ -196,8 +196,8 @@ impl KeyParser<'_> {
 
   fn take_word(&mut self) -> anyhow::Result<&str> {
     let mut next_pos = self.pos;
-    let mut chars = self.text[self.pos..].chars();
-    while let Some(ch) = chars.next() {
+    let chars = self.text[self.pos..].chars();
+    for ch in chars {
       if ch.is_alphanumeric() {
         next_pos += ch.len_utf8();
       } else {

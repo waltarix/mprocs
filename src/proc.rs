@@ -96,6 +96,7 @@ impl Inst {
       });
     }
 
+    #[allow(clippy::redundant_clone)]
     {
       let tx = tx.clone();
       let running = running.clone();
@@ -173,6 +174,7 @@ pub enum ProcUpdate {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[allow(clippy::upper_case_acronyms)]
 pub enum StopSignal {
   #[serde(rename = "SIGINT")]
   SIGINT,
@@ -484,68 +486,66 @@ impl Proc {
           }
         },
       }
-    } else {
-      if let ProcState::Some(inst) = &mut self.inst {
-        match mouse_mode {
-          MouseProtocolMode::None => match event.kind {
-            MouseEventKind::Down(btn) => match btn {
-              MouseButton::Left => {
-                if let Some(vt) = inst.vt.read().log_get() {
-                  self.copy_mode = CopyMode::None(Some(translate_mouse_pos(
-                    &event,
-                    &term_area,
-                    vt.screen().scrollback(),
-                  )));
-                }
-              }
-              MouseButton::Right | MouseButton::Middle => (),
-            },
-            MouseEventKind::Up(_) => (),
-            MouseEventKind::Drag(MouseButton::Left) => {
+    } else if let ProcState::Some(inst) = &mut self.inst {
+      match mouse_mode {
+        MouseProtocolMode::None => match event.kind {
+          MouseEventKind::Down(btn) => match btn {
+            MouseButton::Left => {
               if let Some(vt) = inst.vt.read().log_get() {
-                let pos = translate_mouse_pos(
+                self.copy_mode = CopyMode::None(Some(translate_mouse_pos(
                   &event,
                   &term_area,
                   vt.screen().scrollback(),
-                );
-                self.copy_mode = match std::mem::take(&mut self.copy_mode) {
-                  CopyMode::None(pos_) => CopyMode::Range(
-                    vt.screen().clone(),
-                    pos_.unwrap_or_default(),
-                    pos,
-                  ),
-                  CopyMode::Start(..) | CopyMode::Range(..) => {
-                    unreachable!()
-                  }
-                };
+                )));
               }
             }
-            MouseEventKind::Drag(_) => (),
-            MouseEventKind::Moved => (),
-            MouseEventKind::ScrollDown => {
-              if let Some(mut vt) = inst.vt.write().log_get() {
-                Self::scroll_vt_down(&mut vt, config.mouse_scroll_speed);
-              }
-            }
-            MouseEventKind::ScrollUp => {
-              if let Some(mut vt) = inst.vt.write().log_get() {
-                Self::scroll_vt_up(&mut vt, config.mouse_scroll_speed);
-              }
-            }
+            MouseButton::Right | MouseButton::Middle => (),
           },
-          MouseProtocolMode::Press
-          | MouseProtocolMode::PressRelease
-          | MouseProtocolMode::ButtonMotion
-          | MouseProtocolMode::AnyMotion => {
-            let ev = MouseEvent {
-              kind: event.kind,
-              column: event.column - term_area.x,
-              row: event.row - term_area.y,
-              modifiers: event.modifiers,
-            };
-            let seq = encode_mouse_event(ev);
-            let _r = inst.master.write_all(seq.as_bytes());
+          MouseEventKind::Up(_) => (),
+          MouseEventKind::Drag(MouseButton::Left) => {
+            if let Some(vt) = inst.vt.read().log_get() {
+              let pos = translate_mouse_pos(
+                &event,
+                &term_area,
+                vt.screen().scrollback(),
+              );
+              self.copy_mode = match std::mem::take(&mut self.copy_mode) {
+                CopyMode::None(pos_) => CopyMode::Range(
+                  vt.screen().clone(),
+                  pos_.unwrap_or_default(),
+                  pos,
+                ),
+                CopyMode::Start(..) | CopyMode::Range(..) => {
+                  unreachable!()
+                }
+              };
+            }
           }
+          MouseEventKind::Drag(_) => (),
+          MouseEventKind::Moved => (),
+          MouseEventKind::ScrollDown => {
+            if let Some(mut vt) = inst.vt.write().log_get() {
+              Self::scroll_vt_down(&mut vt, config.mouse_scroll_speed);
+            }
+          }
+          MouseEventKind::ScrollUp => {
+            if let Some(mut vt) = inst.vt.write().log_get() {
+              Self::scroll_vt_up(&mut vt, config.mouse_scroll_speed);
+            }
+          }
+        },
+        MouseProtocolMode::Press
+        | MouseProtocolMode::PressRelease
+        | MouseProtocolMode::ButtonMotion
+        | MouseProtocolMode::AnyMotion => {
+          let ev = MouseEvent {
+            kind: event.kind,
+            column: event.column - term_area.x,
+            row: event.row - term_area.y,
+            modifiers: event.modifiers,
+          };
+          let seq = encode_mouse_event(ev);
+          let _r = inst.master.write_all(seq.as_bytes());
         }
       }
     }
@@ -598,9 +598,7 @@ pub struct Pos {
 
 impl Pos {
   pub fn to_low_high<'a>(a: &'a Self, b: &'a Self) -> (&'a Self, &'a Self) {
-    if a.y > b.y {
-      return (b, a);
-    } else if a.y == b.y && a.x > b.x {
+    if a.y > b.y || (a.y == b.y && a.x > b.x) {
       return (b, a);
     }
     (a, b)
@@ -612,23 +610,19 @@ impl Pos {
     let (low, high) = Pos::to_low_high(start, end);
 
     if y > low.y {
-      if y < high.y {
-        true
-      } else if y == high.y && x <= high.x {
-        true
-      } else {
-        false
-      }
-    } else if y == low.y {
-      if y < high.y {
-        x >= low.x
-      } else if y == high.y {
-        x >= low.x && x <= high.x
-      } else {
-        false
-      }
-    } else {
-      false
+      return y < high.y || (y == high.y && x <= high.x);
     }
+
+    if y == low.y {
+      if y < high.y {
+        return x >= low.x;
+      }
+
+      if y == high.y {
+        return x >= low.x && x <= high.x;
+      }
+    }
+
+    false
   }
 }

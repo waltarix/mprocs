@@ -1,6 +1,6 @@
 use tui::{
   style::{Color, Modifier, Style},
-  widgets::{Block, BorderType, Borders},
+  widgets::{Block, Borders},
 };
 
 pub struct Theme {
@@ -9,25 +9,17 @@ pub struct Theme {
 }
 
 impl Theme {
-  pub fn pane_title(&self, active: bool) -> Style {
-    let style = Style::default();
-    if active {
-      style.fg(Color::Reset).add_modifier(Modifier::BOLD)
-    } else {
-      style.fg(Color::Reset)
+  pub fn style(&self, active: bool) -> Style {
+    match active {
+      true => Style::default().fg(Color::Rgb(0, 255, 127)),
+      false => Style::default().fg(Color::Rgb(192, 192, 192)),
     }
   }
 
   pub fn pane(&self, active: bool) -> Block {
-    let type_ = match active {
-      true => BorderType::Thick,
-      false => BorderType::Plain,
-    };
+    let style = self.style(active);
 
-    Block::default()
-      .borders(Borders::ALL)
-      .border_type(type_)
-      .border_style(Style::default().fg(Color::Reset).bg(Color::Reset))
+    Block::default().borders(Borders::ALL).border_style(style)
   }
 
   pub fn copy_mode_label(&self) -> Style {
@@ -54,7 +46,7 @@ impl Default for Theme {
   fn default() -> Self {
     Self {
       procs_item: Style::default().fg(Color::Reset),
-      procs_item_active: Style::default().bg(Color::Indexed(240)),
+      procs_item_active: Style::default().bg(Color::Rgb(56, 58, 62)),
     }
   }
 }

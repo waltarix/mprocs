@@ -1,6 +1,7 @@
 use std::process::Stdio;
 
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use which::which;
 
 #[allow(dead_code)]
@@ -102,9 +103,7 @@ fn copy_impl(s: &str, provider: &Provider) -> Result<()> {
   Ok(())
 }
 
-lazy_static::lazy_static! {
-  static ref PROVIDER: Provider = detect_copy_provider();
-}
+static PROVIDER: Lazy<Provider> = Lazy::new(detect_copy_provider);
 
 pub fn copy(s: &str) {
   match copy_impl(s, &PROVIDER) {

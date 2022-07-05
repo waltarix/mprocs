@@ -136,7 +136,7 @@ impl App {
           let on_exit = exit_listener.clone();
           tokio::spawn(async move {
             let mut buf: Vec<u8> = Vec::with_capacity(32);
-            let () = select! {
+            select! {
               _ = on_exit.fuse() => return,
               count = socket.read_to_end(&mut buf).fuse() => {
                 if count.is_err() {
@@ -406,21 +406,19 @@ impl App {
 
         let layout = self.get_layout();
         if term_check_hit(layout.term_area(), mev.column, mev.row) {
-          match (self.state.scope, mev.kind) {
-            (Scope::Procs, MouseEventKind::Down(_)) => {
-              self.state.scope = Scope::Term
-            }
-            _ => (),
+          if let (Scope::Procs, MouseEventKind::Down(_)) =
+            (self.state.scope, mev.kind)
+          {
+            self.state.scope = Scope::Term
           }
           if let Some(proc) = self.state.get_current_proc_mut() {
             proc.handle_mouse(mev, layout.term_area(), &self.config);
           }
         } else if procs_check_hit(layout.procs, mev.column, mev.row) {
-          match (self.state.scope, mev.kind) {
-            (Scope::Term, MouseEventKind::Down(_)) => {
-              self.state.scope = Scope::Procs
-            }
-            _ => (),
+          if let (Scope::Term, MouseEventKind::Down(_)) =
+            (self.state.scope, mev.kind)
+          {
+            self.state.scope = Scope::Procs
           }
           match mev.kind {
             MouseEventKind::Down(btn) => match btn {
@@ -653,11 +651,13 @@ impl App {
         LoopAction::Render
       }
       AppEvent::ShowRemoveProc => {
-        let id = self
-          .state
-          .get_current_proc()
-          .map(|proc| if proc.is_up() { None } else { Some(proc.id) })
-          .flatten();
+        let id = self.state.get_current_proc().and_then(|proc| {
+          if proc.is_up() {
+            None
+          } else {
+            Some(proc.id)
+          }
+        });
         match id {
           Some(id) => {
             self.state.modal = Some(Modal::RemoveProc { id });
@@ -826,7 +826,7 @@ impl AppLayout {
     } else {
       config.proc_list_width as u16
     };
-    let zoom_banner_h = if zoom { 1 } else { 0 };
+    let zoom_banner_h = u16::from(zoom);
     let top_bot = Layout::default()
       .direction(Direction::Vertical)
       .constraints([Constraint::Min(1), Constraint::Length(keymap_h)])

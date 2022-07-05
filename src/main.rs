@@ -1,4 +1,5 @@
 mod app;
+mod cli;
 mod clipboard;
 mod config;
 mod config_lua;
@@ -22,10 +23,14 @@ mod ui_term;
 mod ui_zoom_tip;
 mod yaml_val;
 
-use std::{io::Read, path::Path};
+use std::{
+  io::Read,
+  path::{Path, PathBuf},
+};
 
 use anyhow::{bail, Result};
-use clap::{arg, command, ArgMatches};
+use clap::Parser;
+use cli::Options;
 use config::{CmdConfig, Config, ConfigContext, ProcConfig, ServerConfig};
 use config_lua::load_lua_config;
 use ctl::run_ctl;
@@ -64,16 +69,9 @@ async fn main() -> Result<(), std::io::Error> {
 }
 
 async fn run_app() -> anyhow::Result<()> {
-  let matches = command!()
-    .arg(arg!(-c --config [PATH] "Config path [default: mprocs.yaml]"))
-    .arg(arg!(-s --server [PATH] "Remote control server address. Example: 127.0.0.1:4050."))
-    .arg(arg!(--ctl [YAML] "Send yaml/json encoded command to running mprocs"))
-    .arg(arg!(--names [NAMES] "Names for processes provided by cli arguments. Separated by comma."))
-    .arg(arg!(--npm "Run scripts from package.json. Scripts are not started by default."))
-    .arg(arg!([COMMANDS]... "Commands to run (if omitted, commands from config will be run)"))
-    .get_matches();
+  let options = Options::parse();
 
-  let config_value = load_config_value(&matches)
+  let config_value = load_config_value(options.config)
     .map_err(|e| anyhow::Error::msg(format!("[{}] {}", "config", e)))?;
 
   let mut settings = Settings::default();
@@ -99,28 +97,27 @@ async fn run_app() -> anyhow::Result<()> {
       Config::make_default(&settings)
     };
 
-    if let Some(server_addr) = matches.value_of("server") {
-      config.server = Some(ServerConfig::from_str(server_addr)?);
+    if let Some(server_addr) = options.server {
+      config.server = Some(ServerConfig::Tcp(server_addr));
     }
 
-    if matches.occurrences_of("ctl") > 0 {
-      return run_ctl(matches.value_of("ctl").unwrap(), &config).await;
+    if let Some(control) = options.control {
+      return run_ctl(control.as_str(), &config).await;
     }
 
-    if let Some(cmds) = matches.values_of("COMMANDS") {
-      let names = matches
-        .value_of("names")
-        .map_or_else(|| Vec::new(), |arg| arg.split(",").collect::<Vec<_>>());
-      let procs = cmds
+    if !options.commands.is_empty() {
+      let names = options.names.map_or_else(Vec::new, |arg| {
+        arg.split(',').map(|a| a.to_string()).collect::<Vec<_>>()
+      });
+      let procs = options
+        .commands
         .into_iter()
         .enumerate()
         .map(|(i, cmd)| ProcConfig {
           name: names
             .get(i)
             .map_or_else(|| cmd.to_string(), |s| s.to_string()),
-          cmd: CmdConfig::Shell {
-            shell: cmd.to_owned(),
-          },
+          cmd: CmdConfig::Shell { shell: cmd },
           env: None,
           cwd: None,
           autostart: true,
@@ -129,7 +126,7 @@ async fn run_app() -> anyhow::Result<()> {
         .collect::<Vec<_>>();
 
       config.procs = procs;
-    } else if matches.is_present("npm") {
+    } else if options.npm {
       let procs = load_npm_procs()?;
       config.procs = procs;
     }
@@ -142,12 +139,12 @@ async fn run_app() -> anyhow::Result<()> {
 }
 
 fn load_config_value(
-  matches: &ArgMatches,
+  config: Option<PathBuf>,
 ) -> Result<Option<(Value, ConfigContext)>> {
-  if let Some(path) = matches.value_of("config") {
+  if let Some(path) = config {
     return Ok(Some((
-      read_value(path)?,
-      ConfigContext { path: path.into() },
+      read_value(path.to_str().unwrap())?,
+      ConfigContext { path },
     )));
   }
 
@@ -186,7 +183,7 @@ fn load_config_value(
 
 fn read_value(path: &str) -> Result<Value> {
   // Open the file in read-only mode with buffer.
-  let file = match std::fs::File::open(&path) {
+  let file = match std::fs::File::open(path) {
     Ok(file) => file,
     Err(err) => match err.kind() {
       std::io::ErrorKind::NotFound => {

@@ -26,7 +26,7 @@ pub fn render_add_proc(
 
   let block = theme
     .pane(true)
-    .title(Span::styled("Add process", theme.pane_title(true)));
+    .title(Span::styled("Add process", theme.style(true)));
   frame.render_widget(block, Rect::new(x - 1, y - 1, 42, 3).intersection(area));
 
   let left_trim = input.cursor().saturating_sub(w as usize);
@@ -34,8 +34,7 @@ pub fn render_add_proc(
   let (value, cursor) = if left_trim > 0 {
     let start =
       unicode_segmentation::UnicodeSegmentation::grapheme_indices(value, true)
-        .skip(left_trim)
-        .next()
+        .nth(left_trim)
         .map_or_else(|| value.len(), |(len, _)| len);
     (&value[start..], input.cursor() - left_trim)
   } else {

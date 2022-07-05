@@ -12,21 +12,11 @@ pub const SS3: &str = "\x1bO";
 
 /// Specifies terminal modes/configuration that can influence how a KeyCode
 /// is encoded when being sent to and application via the pty.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct KeyCodeEncodeModes {
   pub enable_csi_u_key_encoding: bool,
   pub application_cursor_keys: bool,
   pub newline_mode: bool,
-}
-
-impl Default for KeyCodeEncodeModes {
-  fn default() -> Self {
-    KeyCodeEncodeModes {
-      enable_csi_u_key_encoding: false,
-      application_cursor_keys: false,
-      newline_mode: false,
-    }
-  }
 }
 
 /// Returns the xterm compatible byte sequence that represents this KeyCode
@@ -39,8 +29,8 @@ pub fn encode_key(key: &Key, modes: KeyCodeEncodeModes) -> Result<String> {
     return Ok(encoded);
   }
 
-  let code = key.code().clone();
-  let mods = key.mods().clone();
+  let code = *key.code();
+  let mods = *key.mods();
 
   let mut buf = String::new();
 
@@ -52,7 +42,7 @@ pub fn encode_key(key: &Key, modes: KeyCodeEncodeModes) -> Result<String> {
       if (c.is_ascii_punctuation() || c.is_ascii_uppercase())
         && mods.contains(KeyModifiers::SHIFT) =>
     {
-      mods.clone().difference(KeyModifiers::SHIFT)
+      mods.difference(KeyModifiers::SHIFT)
     }
     _ => mods,
   };
@@ -273,10 +263,7 @@ fn encode_modifiers(mods: KeyModifiers) -> u8 {
 /// or could be a key that a user legitimately wants to process in their
 /// terminal application
 fn is_ambiguous_ascii_ctrl(c: char) -> bool {
-  match c {
-    'i' | 'I' | 'm' | 'M' | '[' | '{' | '@' => true,
-    _ => false,
-  }
+  matches!(c, 'i' | 'I' | 'm' | 'M' | '[' | '{' | '@')
 }
 
 /// Map c to its Ctrl equivalent.
@@ -526,7 +513,7 @@ pub fn print_key(key: &Key) -> String {
     KeyCode::Esc => buf.push_str("Esc"),
   }
 
-  return buf;
+  buf
 }
 
 /*

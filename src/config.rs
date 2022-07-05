@@ -34,17 +34,16 @@ impl Config {
     let config = config.as_object()?;
 
     let procs = if let Some(procs) = config.get(&Value::from("procs")) {
-      let procs = procs
+      procs
         .as_object()?
         .into_iter()
         .map(|(name, proc)| {
-          Ok(ProcConfig::from_val(value_to_string(&name)?, proc, ctx)?)
+          ProcConfig::from_val(value_to_string(&name)?, proc, ctx)
         })
         .collect::<Result<Vec<_>>>()?
         .into_iter()
-        .filter_map(|x| x)
-        .collect::<Vec<_>>();
-      procs
+        .flatten()
+        .collect::<Vec<_>>()
     } else {
       Vec::new()
     };
@@ -186,7 +185,7 @@ impl ProcConfig {
             let extra_paths = match add_path.raw() {
               Value::String(path) => vec![path.as_str()],
               Value::Sequence(paths) => paths
-                .into_iter()
+                .iter()
                 .filter_map(|path| path.as_str())
                 .collect::<Vec<_>>(),
               _ => {
@@ -197,14 +196,12 @@ impl ProcConfig {
               .into_iter()
               .map(|p| PathBuf::from_str(p).map_err(anyhow::Error::from))
               .collect::<Result<Vec<_>>>()?;
-            let mut paths = std::env::var_os("PATH").map_or_else(
-              || Vec::new(),
-              |path_var| {
+            let mut paths =
+              std::env::var_os("PATH").map_or_else(Vec::new, |path_var| {
                 std::env::split_paths(&path_var)
                   .map(|p| p.into_os_string())
                   .collect::<Vec<_>>()
-              },
-            );
+              });
             for p in extra_paths {
               paths.push(p.into_os_string());
             }
@@ -261,6 +258,16 @@ impl ServerConfig {
 pub enum CmdConfig {
   Cmd { cmd: Vec<String> },
   Shell { shell: String },
+}
+
+trait MyCommandBuilder {
+  fn from_shell(shell: &str) -> Self;
+}
+
+impl MyCommandBuilder for CommandBuilder {
+  fn from_shell(shell: &str) -> Self {
+    Self::from_argv(vec!["/bin/sh".into(), "-c".into(), shell.into()])
+  }
 }
 
 impl From<&ProcConfig> for CommandBuilder {

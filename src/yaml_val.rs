@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{env::consts::OS, rc::Rc};
 
 use anyhow::bail;
@@ -5,18 +6,10 @@ use indexmap::IndexMap;
 use serde_yaml::Value;
 
 #[derive(Clone)]
-struct Trace(Option<Rc<Box<(String, Trace)>>>);
+struct Trace(Option<Rc<(String, Trace)>>);
 
-impl Trace {
-  pub fn empty() -> Self {
-    Trace(None)
-  }
-
-  pub fn add<T: ToString>(&self, seg: T) -> Self {
-    Trace(Some(Rc::new(Box::new((seg.to_string(), self.clone())))))
-  }
-
-  pub fn to_string(&self) -> String {
+impl fmt::Display for Trace {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut str = String::new();
     fn add(buf: &mut String, trace: &Trace) {
       match &trace.0 {
@@ -30,7 +23,17 @@ impl Trace {
     }
     add(&mut str, self);
 
-    str
+    write!(f, "{}", str)
+  }
+}
+
+impl Trace {
+  pub fn empty() -> Self {
+    Trace(None)
+  }
+
+  pub fn add<T: ToString>(&self, seg: T) -> Self {
+    Trace(Some(Rc::new((seg.to_string(), self.clone()))))
   }
 }
 
@@ -42,18 +45,15 @@ impl<'a> Val<'a> {
   }
 
   fn create(value: &'a Value, trace: Trace) -> anyhow::Result<Self> {
-    match value {
-      Value::Mapping(map) => {
-        if map
-          .into_iter()
-          .next()
-          .map_or(false, |(k, _)| k.eq("$select"))
-        {
-          let (v, t) = Self::select(map, trace.clone())?;
-          return Self::create(v, t);
-        }
+    if let Value::Mapping(map) = value {
+      if map
+        .into_iter()
+        .next()
+        .map_or(false, |(k, _)| k.eq("$select"))
+      {
+        let (v, t) = Self::select(map, trace)?;
+        return Self::create(v, t);
       }
-      _ => (),
     }
     Ok(Val(value, trace))
   }
@@ -138,7 +138,7 @@ impl<'a> Val<'a> {
           item: &'a Value,
           trace: &'a Trace,
         ) -> anyhow::Result<Val<'a>> {
-          Ok(Val::create(item, trace.add(value_to_string(k)?))?)
+          Val::create(item, trace.add(value_to_string(k)?))
         }
         Ok((k.to_owned(), mk_val(k, item, &self.1)?))
       })

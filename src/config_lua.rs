@@ -9,7 +9,7 @@ pub fn load_lua_config(_path: &str, src: &str) -> Result<V> {
   conv_value(&lua, v)
 }
 
-fn conv_value(lua: &Lua, value: Value) -> Result<V> {
+fn conv_value(_lua: &Lua, value: Value) -> Result<V> {
   let v = match value {
     Value::Nil => V::Null,
     Value::Boolean(x) => V::Bool(x),
@@ -21,7 +21,7 @@ fn conv_value(lua: &Lua, value: Value) -> Result<V> {
       let mut map = serde_yaml::Mapping::new();
       for entry in x.pairs::<Value, Value>() {
         let (k, v) = entry.unwrap();
-        map.insert(conv_value(lua, k)?, conv_value(lua, v)?);
+        map.insert(conv_value(_lua, k)?, conv_value(_lua, v)?);
       }
       V::Mapping(map)
     }

@@ -15,6 +15,9 @@ use crate::{
   theme::Theme,
 };
 
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
+
 type Backend = CrosstermBackend<io::Stdout>;
 
 pub fn render_procs(area: Rect, frame: &mut Frame<Backend>, state: &mut State) {
@@ -39,15 +42,12 @@ pub fn render_procs(area: Rect, frame: &mut Frame<Backend>, state: &mut State) {
     .collect::<Vec<_>>();
 
   let title = {
-    let mut spans = vec![Span::styled("Processes", theme.pane_title(active))];
+    let mut spans = vec![Span::styled("Processes", theme.style(active))];
     if state.quitting {
       spans.push(Span::from(" "));
       spans.push(Span::styled(
         "QUITTING",
-        Style::default()
-          .fg(Color::Black)
-          .bg(Color::Red)
-          .add_modifier(Modifier::BOLD),
+        Style::default().fg(Color::Black).bg(Color::Red),
       ));
     }
     spans
@@ -57,6 +57,18 @@ pub fn render_procs(area: Rect, frame: &mut Frame<Backend>, state: &mut State) {
     .block(theme.pane(active).title(title))
     .style(Style::default().fg(Color::White));
   frame.render_stateful_widget(items, area, &mut list_state);
+}
+
+fn truncate_string(str: String, max_width: usize) -> String {
+  let mut width = 0;
+  str
+    .graphemes(true)
+    .take_while(|c| {
+      width += c.width();
+      width <= max_width
+    })
+    .collect::<Vec<_>>()
+    .join("")
 }
 
 fn create_proc_item<'a>(
@@ -77,7 +89,7 @@ fn create_proc_item<'a>(
   };
 
   let mark = if is_cur {
-    Span::raw("•")
+    Span::styled("▍", Style::default().fg(Color::Yellow))
   } else {
     Span::raw(" ")
   };
@@ -86,14 +98,10 @@ fn create_proc_item<'a>(
   let name_max = (width as usize)
     .saturating_sub(mark.width())
     .saturating_sub(status.width());
-  let name_len = name.chars().count();
+  let name_len = name.width();
+
   if name_len > name_max {
-    name.truncate(
-      name
-        .char_indices()
-        .nth(name_max)
-        .map_or(name.len(), |(n, _)| n),
-    )
+    name = truncate_string(name, name_max)
   }
   if name_len < name_max {
     for _ in name_len..name_max {

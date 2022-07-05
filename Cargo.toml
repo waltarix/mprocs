@@ -1,6 +1,6 @@
 [profile.release]
-strip = "symbols"
-opt-level = "z"   # optimize for binary size
+strip = true
+opt-level = 2
 lto = true        # link time optimization
 panic = "abort"
 codegen-units = 1
@@ -10,3 +10,6 @@ members = [
   "src",
   "vendor/vt100",
 ]
+
+[patch.crates-io]
+unicode-width = { git = "https://github.com/waltarix/unicode-width", tag = "v0.1.9-custom-r3" }

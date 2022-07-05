@@ -15,6 +15,8 @@ use crate::{
   theme::Theme,
 };
 
+use unicode_width::UnicodeWidthStr;
+
 type Backend = CrosstermBackend<io::Stdout>;
 
 pub fn render_procs(area: Rect, frame: &mut Frame<Backend>, state: &mut State) {
@@ -39,15 +41,12 @@ pub fn render_procs(area: Rect, frame: &mut Frame<Backend>, state: &mut State) {
     .collect::<Vec<_>>();
 
   let title = {
-    let mut spans = vec![Span::styled("Processes", theme.pane_title(active))];
+    let mut spans = vec![Span::styled("Processes", theme.style(active))];
     if state.quitting {
       spans.push(Span::from(" "));
       spans.push(Span::styled(
         "QUITTING",
-        Style::default()
-          .fg(Color::Black)
-          .bg(Color::Red)
-          .add_modifier(Modifier::BOLD),
+        Style::default().fg(Color::Black).bg(Color::Red),
       ));
     }
     spans
@@ -77,7 +76,7 @@ fn create_proc_item<'a>(
   };
 
   let mark = if is_cur {
-    Span::raw("•")
+    Span::raw("»")
   } else {
     Span::raw(" ")
   };
@@ -86,7 +85,7 @@ fn create_proc_item<'a>(
   let name_max = (width as usize)
     .saturating_sub(mark.width())
     .saturating_sub(status.width());
-  let name_len = name.chars().count();
+  let name_len = UnicodeWidthStr::width(name.as_str());
   if name_len > name_max {
     name.truncate(
       name

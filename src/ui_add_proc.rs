@@ -26,7 +26,7 @@ pub fn render_add_proc(
 
   let block = theme
     .pane(true)
-    .title(Span::styled("Add process", theme.pane_title(true)));
+    .title(Span::styled("Add process", theme.style(true)));
   frame.render_widget(block, Rect::new(x - 1, y - 1, 42, 3).intersection(area));
 
   let left_trim = input.cursor().saturating_sub(w as usize);

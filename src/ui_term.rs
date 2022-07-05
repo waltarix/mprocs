@@ -8,7 +8,7 @@ use tui::{
   layout::{Margin, Rect},
   style::{Color, Modifier, Style},
   text::{Span, Text},
-  widgets::{Clear, Paragraph, Widget, Wrap},
+  widgets::{BorderType, Clear, Paragraph, Widget, Wrap},
   Frame,
 };
 
@@ -35,7 +35,8 @@ pub fn render_term(area: Rect, frame: &mut Frame<Backend>, state: &mut State) {
   if let Some(proc) = state.get_current_proc() {
     let block = theme
       .pane(active)
-      .title(Span::styled("Terminal", theme.pane_title(active)));
+      .border_type(BorderType::Rounded)
+      .title(Span::styled("Terminal", theme.style(active)));
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
 

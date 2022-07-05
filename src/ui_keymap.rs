@@ -29,7 +29,7 @@ pub fn render_keymap(
 
   let block = theme
     .pane(false)
-    .title(Span::styled("Help", theme.pane_title(false)));
+    .title(Span::styled("Help", theme.style(false)));
   frame.render_widget(Clear, area);
   frame.render_widget(block, area);
 

@@ -5,7 +5,7 @@ use tui::{
   layout::{Margin, Rect},
   style::{Color, Modifier, Style},
   text::{Span, Spans, Text},
-  widgets::{Clear, Paragraph, Widget, Wrap},
+  widgets::{BorderType, Clear, Paragraph, Widget, Wrap},
   Frame,
 };
 
@@ -31,7 +31,7 @@ pub fn render_term(area: Rect, frame: &mut Frame<Backend>, state: &mut State) {
 
   if let Some(proc) = state.get_current_proc() {
     let mut title = Vec::with_capacity(4);
-    title.push(Span::styled("Terminal", theme.pane_title(active)));
+    title.push(Span::styled("Terminal", theme.style(active)));
     match proc.copy_mode {
       CopyMode::None(_) => (),
       CopyMode::Start(_, _) | CopyMode::Range(_, _, _) => {
@@ -40,7 +40,10 @@ pub fn render_term(area: Rect, frame: &mut Frame<Backend>, state: &mut State) {
       }
     };
 
-    let block = theme.pane(active).title(Spans::from(title));
+    let block = theme
+      .pane(active)
+      .title(Spans::from(title))
+      .border_type(BorderType::Rounded);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
 
